@@ -1,5 +1,5 @@
 from django import forms
-from .models import ( Reservation )
+from .models import ( Reservation, Comment )
 from datetime import date
 
 class ReservationForm(forms.ModelForm):
@@ -23,3 +23,12 @@ class ReservationForm(forms.ModelForm):
 
         if date_in < date.today():
             raise forms.ValidationError("Past Date!")
+
+
+class CommentForm(forms.ModelForm):
+
+    class Meta:
+        model = Comment
+        fields = ('text', 'rating')
+
+        

@@ -1,7 +1,8 @@
+from multiprocessing import context
 from urllib import request
 from django.shortcuts import render
 from .forms import (ReservationForm)
-from .models import (Reservation, Room, Floor)
+from .models import (Reservation, Room, Floor, Comment)
 from datetime import date, datetime
 from django.views.generic.list import ListView
 from django.views.generic.detail import DetailView
@@ -13,13 +14,39 @@ from django.core.paginator import Paginator
 
  
 
-def about(request):
+def about(request):  
+
     return render(request, 'about.html', {})
 
     
 
 def visitor_homepage(request):
-    return render(request, 'visitor_homepage.html', {})
+    user = request.user
+    context = {}
+    if request.method == 'POST':
+        reservations_id = request.POST.getlist('reservations')
+        comments = request.POST.getlist('text')
+        ratings = request.POST.getlist('rating')
+
+        for reservations_id, comment, rating in zip(reservations_id, comments, ratings):
+            reservation = Reservation.objects.get(id=int(reservations_id))
+            Comment.objects.create(reservation=reservation, text = comment, rating = int(rating))
+
+    if user.is_authenticated:
+        Reservations = user.visitor.resrvations.all()
+        context['past_reservations'] = Reservations.filter(check_out__lt = date.today())
+        context['past_reservations'] = Reservations.filter(check_in__gt = date.today()).order_by('check_in')
+        context['current_reservations'] = Reservations.filter(Q(check_in__gte = date.today())) & (Q(check_out__gt = date.today()))
+        
+        if context['past_reservations'].exists():
+            comment_forms = []
+            for reservation in context['past_reservations']:
+                if not hasattr(reservation, 'comment'):
+                    comment_forms.append(CommentForm(initial={'reservation': reservation}))
+                else:
+                    comment_forms.append(None)
+                context['past_and_comments'] = zip(context['past_reservations'], comment_forms)
+    return render(request, 'visitor_homepage.html', context)
 
 @login_required 
 def create_reservation(request):

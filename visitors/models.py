@@ -58,7 +58,7 @@ class Reservation(models.Model):
     check_out = models.DateField()
     active = models.BooleanField()
     rooms = models.ManyToManyField(Room, related_name='reservations')
-    visitor = models.ForeignKey(Visitor, on_delete=models.CASCADE)
+    visitor = models.ForeignKey(Visitor, related_name='reservations', on_delete=models.CASCADE)
 
     def clean(self):
         if self.check_out <= self.check_in:
@@ -79,3 +79,18 @@ class Reservation(models.Model):
     def __str__(self):
         return f"CHECKIN {self.check_in} | CHECKOUT {self.check_out}"
         
+
+class Comment(models.Model):
+    
+    RATINGS = ((1,'⭐'), (2,'⭐⭐'), (3,'⭐⭐⭐'), (4,'⭐⭐⭐⭐'), (5, '⭐⭐⭐⭐⭐'))
+
+    reservation = models.OneToOneField(Reservation, on_delete=models.CASCADE)
+    text = models.TextField()
+    created_on = models.DateTimeField(auto_now_add=True)
+    rating = models.IntegerField(choices=RATINGS)
+
+    class Meta:
+        ordering = ['-created_on']
+    
+    def __str__(self):
+        return f'Comment by {self.reservation.visitor}, {self.created_on}'
