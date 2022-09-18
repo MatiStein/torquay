@@ -3,7 +3,6 @@ from .views import (visitor_homepage, create_reservation, about,
                     ReservationList, ReservationView, RoomView)
 urlpatterns = [
     path('homepage', visitor_homepage, name='visitor_homepage'),
-    # a change
     path('create_reservation', create_reservation, name='create_reservation'),
     path('reservations', ReservationList.as_view(), name='reservations'),
     path('reservation-detail/<int:pk>', ReservationView.as_view(), name='reservation_detail'),
