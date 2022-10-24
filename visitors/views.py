@@ -1,7 +1,8 @@
 from multiprocessing import context
+from accounts.models import Visitor
 from urllib import request
 from django.shortcuts import render
-from .forms import (ReservationForm)
+from .forms import (ReservationForm, CommentForm)
 from .models import (Reservation, Room, Floor, Comment)
 from datetime import date, datetime
 from django.views.generic.list import ListView
@@ -11,8 +12,7 @@ from .utils import str_to_date
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
-
- 
+from django.core.mail import send_mail
 
 def about(request):  
 
@@ -32,41 +32,50 @@ def visitor_homepage(request):
             reservation = Reservation.objects.get(id=int(reservations_id))
             Comment.objects.create(reservation=reservation, text = comment, rating = int(rating))
 
-    if user.is_authenticated:
-        Reservations = user.visitor.resrvations.all()
-        context['past_reservations'] = Reservations.filter(check_out__lt = date.today())
-        context['past_reservations'] = Reservations.filter(check_in__gt = date.today()).order_by('check_in')
-        context['current_reservations'] = Reservations.filter(Q(check_in__gte = date.today())) & (Q(check_out__gt = date.today()))
+    
+    Reservations = user.visitor.resrvations.all()
+    context['past_reservations'] = Reservations.filter(check_out__lt = date.today())
+    context['past_reservations'] = Reservations.filter(check_in__gt = date.today()).order_by('check_in')
+    context['current_reservations'] = Reservations.filter(Q(check_in__gte = date.today())) & (Q(check_out__gt = date.today()))
         
-        if context['past_reservations'].exists():
-            comment_forms = []
-            for reservation in context['past_reservations']:
-                if not hasattr(reservation, 'comment'):
-                    comment_forms.append(CommentForm(initial={'reservation': reservation}))
-                else:
-                    comment_forms.append(None)
-                context['past_and_comments'] = zip(context['past_reservations'], comment_forms)
+    if context['past_reservations'].exists():
+        comment_forms = []
+        for reservation in context['past_reservations']:
+            if not hasattr(reservation, 'comment'):
+                comment_forms.append(CommentForm(initial={'reservation': reservation}))
+            else:
+                comment_forms.append(None)
+            context['past_and_comments'] = zip(context['past_reservations'], comment_forms)
     return render(request, 'visitor_homepage.html', context)
 
 @login_required 
 def create_reservation(request):
-    context = {'form': ReservationForm(request.POST or None)}
+    form = ReservationForm(request.POST or None, user = request.user)
+    context = {'form': form}
 
     if 'room' in request.GET:
-        room_number = request.GET.getlist('room') # request.GET.getlist('room')
-
+        room_numbers = request.GET.getlist('room')
         date_in = str_to_date(request, 'date_in')
         date_out = str_to_date(request, 'date_out')
+        
         size = int(request.session.get('size'))
-        room = Room.objects.get(number = int(room_number))
+        visitor = request.session.get('visitor')
 
         reservation = Reservation(check_in=date_in, check_out=date_out, active=True)
-        reservation.visitor = request.user.visitor
+        reservation.visitor = Visitor.objects.get(id=visitor)
+        if request.user.is_staff:
+            reservation.visitor = Visitor.objects.get(id=visitor)
+
         reservation.save()
+        
         for room_number in room_numbers:
             room = Room.objects.get(number = int(room_number))
             reservation.rooms.add(room)
-
+        send_mail(subject='New reservation',
+        message='Reservation creted successfully. See you at ...',
+        from_email='test@test.com',
+        recipient_list=['test2@test.com'])
+        
         print(f"{reservation} WAS CREATED!")
 
     if request.method == 'POST':
@@ -85,6 +94,8 @@ def create_reservation(request):
                 request.session['date_in'] = date_in.strftime("%Y/%m/%d")
                 request.session['date_out'] = date_out.strftime("%Y/%m/%d")
                 request.session['size'] = str(size)
+                if request.user.is_staff:
+                    request.session['visitor'] = form.cleaned_data['visitor'].id
 
                 return render(request, 'available_rooms.html', {'rooms': available_rooms})
 

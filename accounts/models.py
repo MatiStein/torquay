@@ -8,7 +8,7 @@ from country_list import countries_for_language
 class Visitor(models.Model):
     COUNTRIES = countries_for_language('en') 
 
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='customer')
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='user')
     first_name = models.CharField(max_length=50)
     last_name = models.CharField(max_length=50)
     email = models.EmailField()

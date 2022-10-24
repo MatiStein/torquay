@@ -4,18 +4,26 @@ from datetime import date
 
 class ReservationForm(forms.ModelForm):
     
-    ROOM_SIZES = ((2,'Small'),(3,'Medium'),(4,'Large'),(5,'XLarge'),(6,'XXLarge'))
+    ROOM_SIZES = ((2,'Small'),(3,'Medium'),(4,'Large'),(5,'Suite'),(6,'XXLarge'))
 
     class Meta:
         model = Reservation
         fields = ['check_in', 'check_out']
         labels = {'check_in' :'check_in', 'check_out' : 'check_out'}
-        widgets = {
-            'check_in' : forms.SelectDateWidget(),
-            'check_out' : forms.SelectDateWidget()
-        }
+        widgets = {'check_in' : forms.SelectDateWidget(),
+                'check_out' : forms.SelectDateWidget()}
 
     room_size = forms.ChoiceField(choices=ROOM_SIZES)
+
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user', None)
+        super(ReservationForm, self).__init__(*args, **kwargs)
+        self.fields['room_size'] = forms.ChoiceField(choices=ReservationForm.ROOM_SIZES)
+        print(self.user)
+        if self.user.is_staff:
+            self.fields['visitor'] = forms.ModelChoiceField(Visitor.objects.all())
+        else:
+            self.visitor = self.user.visitor
 
     def clean(self):
         date_in = self.cleaned_data['check_in']
